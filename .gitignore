@@ -1,0 +1,5 @@
+node_modules
+.vite
+.DS_Store
+mock_dashboard/dist
+mock_dashboard/.env
