@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -233,7 +233,7 @@ function generateDashboardData(filters, variant) {
     return Math.round(clamp(remainder + drift + (rand() - 0.5) * 2.4, 3, 35));
   });
 
-  const desal = BASE_DATA.desal.map((value, index) => {
+    const desal = BASE_DATA.desal.map((value) => {
     const swing = (scenarioFactor - 1) * 25 + (year - 2041) * 4;
     return Math.round(clamp(value + swing + (rand() - 0.5) * 9, 160, 260));
   });
@@ -876,7 +876,7 @@ function ControlsPage({ filters, setFilters, scenarioMeta, setVariant, setTheme,
   );
 }
 
-function DashboardView({ data, charts, palette, filteredWatchlist, regionLabel, filters, scenarioMeta }) {
+function DashboardView({ data, charts, palette, filteredWatchlist, regionLabel }) {
   return (
     <>
       <div className="primary-grid">
@@ -1085,7 +1085,6 @@ function DashboardView({ data, charts, palette, filteredWatchlist, regionLabel, 
 }
 
 function App() {
-  const location = useLocation();
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('theme');
@@ -1267,8 +1266,6 @@ function App() {
       palette={palette}
       filteredWatchlist={filteredWatchlist}
       regionLabel={regionLabel}
-      filters={filters}
-      scenarioMeta={scenarioMeta}
     />
   );
 
@@ -1283,8 +1280,6 @@ function App() {
       regionLabel={regionLabel}
     />
   );
-
-  const isControlsRoute = location.pathname.startsWith('/controls');
 
   return (
     <div className="app">
@@ -1303,8 +1298,8 @@ function App() {
           <span className="pill">Year {filters.year}</span>
           <span className="pill">{regionLabel}</span>
           <span className={`pill live ${liveState.status}`}>{livePillLabel}</span>
-          {/* <Link to={isControlsRoute ? '/' : '/controls'} className="pill nav-pill">
-            {isControlsRoute ? 'Back to Dashboard' : 'Open Controls'}
+          {/* <Link to="/controls" className="pill nav-pill">
+            Open Controls
           </Link> */}
         </div>
       </header>
