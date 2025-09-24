@@ -1,5 +1,9 @@
 # Global Ocean Observing System Mock Dashboard
 
+> **Project status:** This repository is now archived and kept in read-only mode. The installation and verification steps
+> below remain accurate, and the dashboard was last validated with Node.js 20 by running `npm run build` and `npm run lint`
+> prior to archiving.
+
 The **GOOS Dashboard** is a Vite-powered React application that visualises a fictional environmental monitoring feed for underwater settlement scenarios. It was originally built for a mock trial exercise where students examine impacts of industrial activity on marine ecosystems. All figures are procedurally generated to create a convincing narrative while remaining safe for classroom use.
 
 The goal of this repository is to supply everything you need to run, present, and extend the dashboard experience. This documentation covers project layout, data generation, live collaboration features, and guidance for adapting the visuals to your own story.
