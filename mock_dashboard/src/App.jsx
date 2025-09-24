@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Route, Routes, useLocation } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -13,6 +14,7 @@ import {
   Filler,
 } from 'chart.js';
 import { Line, Bar, Radar, Doughnut } from 'react-chartjs-2';
+import mapTexture from './assets/risk-map.png';
 
 ChartJS.register(
   CategoryScale,
@@ -92,7 +94,7 @@ const BASE_DATA = {
   desal: [186, 190, 196, 205, 212, 219, 226, 232, 228, 220, 210, 198],
   reclaimed: [47, 48, 50, 51, 53, 54, 55, 56, 55, 54, 52, 50],
   o2: [6.2, 6.28, 6.35, 6.32, 6.3, 6.38, 6.42, 6.4, 6.37, 6.35, 6.33, 6.31],
-  co2: [420, 421, 424, 427, 429, 432, 434, 436, 439, 441, 444, 446],
+  co2: [520, 521, 524, 527, 529, 532, 534, 536, 539, 541, 544, 546],
   population: [42, 35, 51, 30, 28],
   kwhCap: [14, 16, 12, 17, 13],
 };
@@ -133,12 +135,12 @@ const INCIDENTS_BASE = [
 ];
 
 const MAP_POINTS = [
-  { id: 'na', label: 'North Atlantic', x: 24, y: 38, base: 0.78 },
-  { id: 'sa', label: 'South Atlantic', x: 36, y: 66, base: 0.52 },
-  { id: 'ind', label: 'Indian Ocean', x: 56, y: 52, base: 0.61 },
-  { id: 'wp', label: 'West Pacific', x: 74, y: 54, base: 0.72 },
-  { id: 'ep', label: 'East Pacific', x: 18, y: 55, base: 0.48 },
-  { id: 'arc', label: 'Arctic', x: 42, y: 18, base: 0.57 },
+  { id: 'na', label: 'North Atlantic', x: 41, y: 38, base: 0.78 },
+  { id: 'sa', label: 'South Atlantic', x: 45, y: 68, base: 0.52 },
+  { id: 'ind', label: 'Indian Ocean', x: 70, y: 55, base: 0.61 },
+  { id: 'ep', label: 'East Pacific', x: 15, y: 56, base: 0.72 },
+  { id: 'wp', label: 'West Pacific', x: 90, y: 45, base: 0.48 },
+  { id: 'arc', label: 'Arctic', x: 51, y: 18, base: 0.57 },
 ];
 
 function mulberry32(seed) {
@@ -702,7 +704,7 @@ function riskClass(level) {
 
 function MapPanel({ points }) {
   return (
-    <div className="map">
+    <div className="map" style={{ '--map-image': `url(${mapTexture})` }}>
       <div className="map-overlay" />
       {points.map((point) => (
         <div
@@ -711,8 +713,8 @@ function MapPanel({ points }) {
           style={{
             left: `${point.x}%`,
             top: `${point.y}%`,
-            width: `${36 + point.intensity * 70}px`,
-            height: `${36 + point.intensity * 70}px`,
+            width: `${44 + point.intensity * 60}px`,
+            height: `${44 + point.intensity * 60}px`,
           }}
         >
           <span>{point.label}</span>
@@ -780,7 +782,310 @@ function WatchlistTable({ rows, regionLabel }) {
   );
 }
 
+function SimulationControlsPanel({ filters, setFilters, scenarioMeta, setVariant, setTheme, theme }) {
+  return (
+    <section className="panel filters controls-panel">
+      <div className="panel-header">
+        <h2>Simulation Controls</h2>
+        <p className="panel-subtext">Tune scenario parameters to explore alternate narratives in the evidence bundle.</p>
+      </div>
+      <div className="controls-grid">
+        <label>
+          <span>Region</span>
+          <select value={filters.region} onChange={(event) => setFilters((prev) => ({ ...prev, region: event.target.value }))}>
+            {REGION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Year</span>
+          <input
+            type="range"
+            min="2038"
+            max="2042"
+            step="1"
+            value={filters.year}
+            onChange={(event) => setFilters((prev) => ({ ...prev, year: Number(event.target.value) }))}
+          />
+          <div className="range-value">{filters.year}</div>
+        </label>
+        <label>
+          <span>Scenario</span>
+          <select value={filters.scenario} onChange={(event) => setFilters((prev) => ({ ...prev, scenario: event.target.value }))}>
+            {Object.entries(SCENARIO_INFO).map(([value, info]) => (
+              <option key={value} value={value}>
+                {info.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="scenario-blurb">
+        <strong>{scenarioMeta.label}:</strong> {scenarioMeta.blurb}
+      </div>
+      <div className="button-row">
+        <button type="button" className="btn" onClick={() => setVariant(Date.now())}>
+          Randomize Mock Data
+        </button>
+        <button type="button" className="btn" onClick={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))}>
+          {theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ControlsPage({ filters, setFilters, scenarioMeta, setVariant, setTheme, theme, regionLabel }) {
+  return (
+    <div className="controls-page">
+      <SimulationControlsPanel
+        filters={filters}
+        setFilters={setFilters}
+        scenarioMeta={scenarioMeta}
+        setVariant={setVariant}
+        setTheme={setTheme}
+        theme={theme}
+      />
+      <section className="panel info-panel">
+        <div className="panel-header">
+          <h2>Presenter Tips</h2>
+          <p className="panel-subtext">Share <code>/controls</code> to control the dashboard from another device.</p>
+        </div>
+        <ul className="quick-tips">
+          <li>
+            Start from the baseline scenario, then switch to alternative narratives while classmates follow the main dashboard.
+          </li>
+          <li>
+            Use "Randomize Mock Data" between slides to highlight how the exhibits can shift under different assumptions.
+          </li>
+          <li>
+            Theme toggles apply globally, so the dashboard updates its look instantly.
+          </li>
+          <li>Current region preview: <strong>{regionLabel}</strong>.</li>
+        </ul>
+        <div className="button-row">
+          <Link to="/" className="btn secondary">
+            Return to Dashboard
+          </Link>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DashboardView({ data, charts, palette, filteredWatchlist, regionLabel, filters, scenarioMeta }) {
+  return (
+    <>
+      <div className="primary-grid">
+        <section className="panel context">
+          <div className="panel-header">
+            <h2>Scenario Context</h2>
+            <p className="panel-subtext">
+              Following dramatic sea-level rise, underwater cities shelter displaced populations. The dashboard summarises fictional monitoring data referenced during mock trial deliberations.
+            </p>
+          </div>
+          <ul className="fact-list">
+            <li>
+              <span>Habitats online</span>
+              <strong>37 underwater districts</strong>
+            </li>
+            <li>
+              <span>Artificial reefs</span>
+              <strong>612 modules installed</strong>
+            </li>
+            <li>
+              <span>Fishing zones</span>
+              <strong>128 regulated grids</strong>
+            </li>
+          </ul>
+          <div className="legend">
+            <span>
+              <span className="dot ok" /> Stable
+            </span>
+            <span>
+              <span className="dot warn" /> Watch
+            </span>
+            <span>
+              <span className="dot danger" /> Critical
+            </span>
+          </div>
+          <div className="note">
+            <strong>Note:</strong> All figures are illustrative and fabricated for educational storytelling.
+          </div>
+        </section>
+
+        <section className="panel kpis">
+          <div className="panel-header">
+            <h2>Key Indicators</h2>
+            <p className="panel-subtext">Quick-look metrics derived from live monitoring streams.</p>
+          </div>
+          <div className="kpi-grid">
+            <KpiCard
+              title="Avg Toxin Index"
+              value={data.kpis.toxin.toFixed(1)}
+              dataset={data.kpis.trends.toxin}
+              color={palette.danger}
+            />
+            <KpiCard
+              title="Fish Stock Health"
+              value={`${data.kpis.fish}%`}
+              dataset={data.kpis.trends.fish}
+              color={palette.ok}
+            />
+            <KpiCard
+              title="O₂ at 200m"
+              value={data.kpis.o2.toFixed(2)}
+              suffix=" mg/L"
+              dataset={data.kpis.trends.o2}
+              color={palette.accent}
+            />
+            <KpiCard
+              title="Water Temp At Construction"
+              value={`${data.kpis.compliance}℉`}
+              dataset={data.kpis.trends.compliance}
+              color={palette.accent2}
+            />
+          </div>
+        </section>
+      </div>
+
+      <section className="cards-grid">
+        <article className="card card-wide">
+          <div className="card-header">
+            <div>
+              <h3>Global Toxin Index</h3>
+              <p>Composite of heavy metals, microplastics, nitrates</p>
+            </div>
+            <span className="badge ghost">Monthly cadence</span>
+          </div>
+          <div className="chart-container">
+            <Line data={charts.toxins.data} options={charts.toxins.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Sea Temperature Distribution</h3>
+              <p>Surface vs. 200m depth (°C)</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Bar data={charts.temp.data} options={charts.temp.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Fish Biomass by Region</h3>
+              <p>Relative biomass vs. 2035 baseline</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Radar data={charts.fish.data} options={charts.fish.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Reef Module Health</h3>
+              <p>Distribution of healthy, watch, and critical modules</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Bar data={charts.reef.data} options={charts.reef.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Energy Mix</h3>
+              <p>Solar topside, tidal, thermal, diesel backup</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Doughnut data={charts.energy.data} options={charts.energy.options} />
+          </div>
+        </article>
+
+        <article className="card card-wide map-card">
+          <div className="card-header">
+            <div>
+              <h3>Map: Risk Heatmap</h3>
+              <p>Higher intensity indicates greater environmental stress</p>
+            </div>
+          </div>
+          <MapPanel points={data.map} />
+        </article>
+
+        <article className="card timeline-card">
+          <div className="card-header">
+            <div>
+              <h3>Incidents Timeline</h3>
+              <p>Reported spills, overfishing alerts, seismic stress events</p>
+            </div>
+          </div>
+          <Timeline events={data.incidents} />
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Desalination &amp; Wastewater</h3>
+              <p>Daily throughput vs. reclaimed (%)</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Bar data={charts.water.data} options={charts.water.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>O₂ / CO₂ Levels</h3>
+              <p>Dissolved O₂ (mg/L) vs. CO₂ (ppm)</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Line data={charts.gasses.data} options={charts.gasses.options} />
+          </div>
+        </article>
+
+        <article className="card">
+          <div className="card-header">
+            <div>
+              <h3>Occupancy &amp; Consumption</h3>
+              <p>Population, kWh per capita</p>
+            </div>
+          </div>
+          <div className="chart-container small">
+            <Bar data={charts.occupancy.data} options={charts.occupancy.options} />
+          </div>
+        </article>
+
+        <article className="card card-wide">
+          <div className="card-header">
+            <div>
+              <h3>Compliance Watchlist</h3>
+              <p>Sites nearing regulatory thresholds</p>
+            </div>
+          </div>
+          <WatchlistTable rows={filteredWatchlist} regionLabel={regionLabel} />
+        </article>
+      </section>
+    </>
+  );
+}
+
 function App() {
+  const location = useLocation();
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('theme');
@@ -796,6 +1101,11 @@ function App() {
 
   const [filters, setFilters] = useState({ region: 'all', year: 2041, scenario: 'baseline' });
   const [variant, setVariant] = useState(0);
+  const [liveState, setLiveState] = useState({ status: 'idle', lastUpdate: null });
+  const eventSourceRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
+  const skipBroadcastRef = useRef(false);
+  const hasHydratedRef = useRef(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -803,6 +1113,126 @@ function App() {
       window.localStorage.setItem('theme', theme);
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (!('EventSource' in window)) {
+      setLiveState({ status: 'unsupported', lastUpdate: null });
+      return undefined;
+    }
+
+    let isMounted = true;
+
+    const applyRemoteUpdate = (payload) => {
+      skipBroadcastRef.current = true;
+      if (payload.filters) {
+        setFilters(payload.filters);
+      }
+      if (typeof payload.variant === 'number' && Number.isFinite(payload.variant)) {
+        setVariant(payload.variant);
+      }
+      if (typeof payload.theme === 'string') {
+        const normalizedTheme = payload.theme === 'light' ? 'light' : 'dark';
+        setTheme(normalizedTheme);
+      }
+
+      const timestamp = payload.timestamp ?? new Date().toISOString();
+      setLiveState({ status: 'connected', lastUpdate: timestamp });
+
+      if (typeof window !== 'undefined') {
+        window.requestAnimationFrame(() => {
+          skipBroadcastRef.current = false;
+        });
+      } else {
+        skipBroadcastRef.current = false;
+      }
+    };
+
+    const connect = () => {
+      if (!isMounted) return;
+
+      setLiveState((prev) => ({ ...prev, status: 'connecting' }));
+
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      const source = new EventSource('/api/stream');
+      eventSourceRef.current = source;
+
+      source.onopen = () => {
+        if (!isMounted) return;
+        setLiveState((prev) => ({ ...prev, status: 'connected' }));
+      };
+
+      const handleMessage = (event) => {
+        if (!isMounted) return;
+        try {
+          const payload = JSON.parse(event.data);
+          applyRemoteUpdate(payload);
+        } catch (error) {
+          console.warn('Failed to parse SSE payload', error);
+        }
+      };
+
+      source.addEventListener('update', handleMessage);
+      source.addEventListener('sync', handleMessage);
+
+      source.onerror = () => {
+        if (!isMounted) return;
+        setLiveState((prev) => ({ ...prev, status: 'disconnected' }));
+        source.close();
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
+        retryTimeoutRef.current = setTimeout(connect, 5000);
+      };
+    };
+
+    connect();
+
+    return () => {
+      isMounted = false;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (skipBroadcastRef.current) {
+      return undefined;
+    }
+    if (!hasHydratedRef.current) {
+      hasHydratedRef.current = true;
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const payload = {
+      filters,
+      variant,
+      theme,
+      timestamp: new Date().toISOString(),
+    };
+
+    fetch('/api/controls', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    }).catch((error) => {
+      console.warn('Failed to broadcast dashboard state', error);
+    });
+
+    return () => controller.abort();
+  }, [filters, theme, variant]);
 
   const palette = theme === 'light' ? LIGHT_THEME : DARK_THEME;
   const data = useMemo(() => generateDashboardData(filters, variant), [filters, variant]);
@@ -816,6 +1246,46 @@ function App() {
     [data.watchlist, filters.region],
   );
 
+  const livePillLabel = (() => {
+    if (liveState.status === 'connected') {
+      if (liveState.lastUpdate) {
+        const time = new Date(liveState.lastUpdate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `Live feed · ${time}`;
+      }
+      return 'Live feed · connected';
+    }
+    if (liveState.status === 'connecting') return 'Live feed · connecting…';
+    if (liveState.status === 'disconnected') return 'Live feed · reconnecting…';
+    if (liveState.status === 'unsupported') return 'Live feed · unsupported';
+    return 'Live feed · idle';
+  })();
+
+  const dashboardElement = (
+    <DashboardView
+      data={data}
+      charts={charts}
+      palette={palette}
+      filteredWatchlist={filteredWatchlist}
+      regionLabel={regionLabel}
+      filters={filters}
+      scenarioMeta={scenarioMeta}
+    />
+  );
+
+  const controlsElement = (
+    <ControlsPage
+      filters={filters}
+      setFilters={setFilters}
+      scenarioMeta={scenarioMeta}
+      setVariant={setVariant}
+      setTheme={setTheme}
+      theme={theme}
+      regionLabel={regionLabel}
+    />
+  );
+
+  const isControlsRoute = location.pathname.startsWith('/controls');
+
   return (
     <div className="app">
       <header className="topbar">
@@ -824,271 +1294,27 @@ function App() {
             🌊
           </div>
           <div>
-            <h1>Ocean Settlements</h1>
-            <p>Environmental Impact Monitoring — Mock Trial Exhibit A</p>
+            <h1>GOOS Dashboard</h1>
+            <p>Global Ocean Observing System - Environmental Impact Monitoring — Trial Exhibit A</p>
           </div>
         </div>
         <div className="topbar-meta">
-          <span className="pill danger">Class Action · Ocean Habitat vs. Aquaterra Corp.</span>
+          <span className="pill danger">Class Action · Sylva Legal vs. Thalassa Corp.</span>
           <span className="pill">Year {filters.year}</span>
           <span className="pill">{regionLabel}</span>
+          <span className={`pill live ${liveState.status}`}>{livePillLabel}</span>
+          {/* <Link to={isControlsRoute ? '/' : '/controls'} className="pill nav-pill">
+            {isControlsRoute ? 'Back to Dashboard' : 'Open Controls'}
+          </Link> */}
         </div>
       </header>
 
       <main className="content">
-        <div className="primary-grid">
-          <section className="panel context">
-            <div className="panel-header">
-              <h2>Scenario Context</h2>
-              <p className="panel-subtext">
-                Following dramatic sea-level rise, underwater cities shelter displaced populations. The dashboard summarises fictional monitoring data referenced during mock trial deliberations.
-              </p>
-            </div>
-            <ul className="fact-list">
-              <li>
-                <span>Habitats online</span>
-                <strong>37 underwater districts</strong>
-              </li>
-              <li>
-                <span>Artificial reefs</span>
-                <strong>612 modules installed</strong>
-              </li>
-              <li>
-                <span>Fishing zones</span>
-                <strong>128 regulated grids</strong>
-              </li>
-            </ul>
-            <div className="legend">
-              <span>
-                <span className="dot ok" /> Stable
-              </span>
-              <span>
-                <span className="dot warn" /> Watch
-              </span>
-              <span>
-                <span className="dot danger" /> Critical
-              </span>
-            </div>
-            <div className="note">
-              <strong>Note:</strong> All figures are illustrative and fabricated for educational storytelling.
-            </div>
-          </section>
-
-          <section className="panel filters">
-            <div className="panel-header">
-              <h2>Simulation Controls</h2>
-              <p className="panel-subtext">Tune scenario parameters to explore alternate narratives in the evidence bundle.</p>
-            </div>
-            <div className="controls-grid">
-              <label>
-                <span>Region</span>
-                <select value={filters.region} onChange={(event) => setFilters((prev) => ({ ...prev, region: event.target.value }))}>
-                  {REGION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Year</span>
-                <input
-                  type="range"
-                  min="2038"
-                  max="2042"
-                  step="1"
-                  value={filters.year}
-                  onChange={(event) => setFilters((prev) => ({ ...prev, year: Number(event.target.value) }))}
-                />
-                <div className="range-value">{filters.year}</div>
-              </label>
-              <label>
-                <span>Scenario</span>
-                <select value={filters.scenario} onChange={(event) => setFilters((prev) => ({ ...prev, scenario: event.target.value }))}>
-                  {Object.entries(SCENARIO_INFO).map(([value, info]) => (
-                    <option key={value} value={value}>
-                      {info.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="scenario-blurb">
-              <strong>{scenarioMeta.label}:</strong> {scenarioMeta.blurb}
-            </div>
-            <div className="button-row">
-              <button type="button" className="btn" onClick={() => setVariant((value) => value + 1)}>
-                Randomize Mock Data
-              </button>
-              <button type="button" className="btn" onClick={() => setTheme((value) => (value === 'dark' ? 'light' : 'dark'))}>
-                Toggle Theme
-              </button>
-            </div>
-          </section>
-
-          <section className="panel kpis">
-            <div className="panel-header">
-              <h2>Key Indicators</h2>
-              <p className="panel-subtext">Quick-look metrics derived from live monitoring streams.</p>
-            </div>
-            <div className="kpi-grid">
-              <KpiCard
-                title="Avg Toxin Index"
-                value={data.kpis.toxin.toFixed(1)}
-                dataset={data.kpis.trends.toxin}
-                color={palette.danger}
-              />
-              <KpiCard
-                title="Fish Stock Health"
-                value={`${data.kpis.fish}%`}
-                dataset={data.kpis.trends.fish}
-                color={palette.ok}
-              />
-              <KpiCard
-                title="O₂ at 200m"
-                value={data.kpis.o2.toFixed(2)}
-                suffix=" mg/L"
-                dataset={data.kpis.trends.o2}
-                color={palette.accent}
-              />
-              <KpiCard
-                title="Compliance Score"
-                value={`${data.kpis.compliance}%`}
-                dataset={data.kpis.trends.compliance}
-                color={palette.accent2}
-              />
-            </div>
-          </section>
-        </div>
-
-        <section className="cards-grid">
-          <article className="card card-wide">
-            <div className="card-header">
-              <div>
-                <h3>Global Toxin Index</h3>
-                <p>Composite of heavy metals, microplastics, nitrates</p>
-              </div>
-              <span className="badge ghost">Monthly cadence</span>
-            </div>
-            <div className="chart-container">
-              <Line data={charts.toxins.data} options={charts.toxins.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Sea Temperature Distribution</h3>
-                <p>Surface vs. 200m depth (°C)</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Bar data={charts.temp.data} options={charts.temp.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Fish Biomass by Region</h3>
-                <p>Relative biomass vs. 2035 baseline</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Radar data={charts.fish.data} options={charts.fish.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Reef Module Health</h3>
-                <p>Distribution of healthy, watch, and critical modules</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Bar data={charts.reef.data} options={charts.reef.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Energy Mix</h3>
-                <p>Solar topside, tidal, thermal, diesel backup</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Doughnut data={charts.energy.data} options={charts.energy.options} />
-            </div>
-          </article>
-
-          <article className="card card-wide">
-            <div className="card-header">
-              <div>
-                <h3>Map: Risk Heatmap</h3>
-                <p>Higher intensity indicates greater environmental stress</p>
-              </div>
-            </div>
-            <MapPanel points={data.map} />
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Incidents Timeline</h3>
-                <p>Reported spills, overfishing alerts, seismic stress events</p>
-              </div>
-            </div>
-            <Timeline events={data.incidents} />
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Desalination &amp; Wastewater</h3>
-                <p>Daily throughput vs. reclaimed (%)</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Bar data={charts.water.data} options={charts.water.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>O₂ / CO₂ Levels</h3>
-                <p>Dissolved O₂ (mg/L) vs. CO₂ (ppm)</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Line data={charts.gasses.data} options={charts.gasses.options} />
-            </div>
-          </article>
-
-          <article className="card">
-            <div className="card-header">
-              <div>
-                <h3>Occupancy &amp; Consumption</h3>
-                <p>Population, kWh per capita</p>
-              </div>
-            </div>
-            <div className="chart-container small">
-              <Bar data={charts.occupancy.data} options={charts.occupancy.options} />
-            </div>
-          </article>
-
-          <article className="card card-wide">
-            <div className="card-header">
-              <div>
-                <h3>Compliance Watchlist</h3>
-                <p>Sites nearing regulatory thresholds</p>
-              </div>
-            </div>
-            <WatchlistTable rows={filteredWatchlist} regionLabel={regionLabel} />
-          </article>
-        </section>
+        <Routes>
+          <Route path="/" element={dashboardElement} />
+          <Route path="/controls" element={controlsElement} />
+          <Route path="*" element={dashboardElement} />
+        </Routes>
       </main>
 
       <footer className="footer">
